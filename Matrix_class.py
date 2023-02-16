@@ -1,7 +1,5 @@
 
-
 class Matrix: pass
-
 
 class Matrix:
     """
@@ -46,7 +44,6 @@ class Matrix:
         t_mat.set_as_mat(mat)
         return t_mat
 
-    
     def get_coef(self, i: int, j: int):
         assert 0 < i <= self.size_l and 0 < j <= self.size_c, "get_coef : given coordinates are out of bounds"
         return self.__content[i-1][j-1]
@@ -89,23 +86,22 @@ class Matrix:
         return ret_mat
 
     def permute(self, j: int, k: int) -> None:
-        """échange les lignes d'indice j et k"""
+        """échange les lignes d'indice j et k (en place)"""
         assert 0 < j <= self.size_l and 0 < k <= self.size_l, "transvect : line does not exist"
         self.__content[j-1], self.__content[k-1] = self.__content[k-1], self.__content[j-1]
     
     def dilate(self, i: int, d: int) -> None:
-        """multiplie la ligne i par le facteur d"""
+        """multiplie la ligne i par le facteur d (en place)"""
         assert 0 < i <= self.size_l, "dilate : line does not exist"
         for j in range(self.size_c):
             self.__content[i-1][j] *= d
     
     def transvect(self, i: int, j: int, t: int) -> None:
-        """ajoute à la ligne i la ligne j multipliée par le facteur t"""
+        """ajoute à la ligne i la ligne j multipliée par le facteur t (en place)"""
         assert 0 < i <= self.size_l and 0 < j <= self.size_l, "transvect : line does not exist"
         for c in range(self.size_c):
             self.__content[i-1][c] += self.__content[j-1][c] * t
 
-    
     def __str__(self) -> str:
         s = "Matrice {} : \n".format(self.name)
         for i in range(self.size_l):
@@ -126,7 +122,17 @@ class Matrix:
         return self.__conv_res(mat_res, '+{}'.format(addvalue.name), self.size)
     
     def __mul__(self, mulvalue) -> Matrix:
-        if type(mulvalue) in (int, float): # multiplication par un scalaire
+        if type(mulvalue) == Matrix: 
+            assert self.size_c == mulvalue.size_l, "number of columns on the left does not match with number of lines on the right"
+            mat_res = [
+                [sum([self.get_coef(i, k) * mulvalue.get_coef(k, j) for k in range(1, self.size_c+1)]) # TODO : pose probleme si self[i, k] est une constante mais pas mulvalue[k, j]
+                    for j in range(1, mulvalue.size_c+1)
+                ]
+                for i in range(1, self.size_l+1)
+            ]
+            size = (self.size_l, mulvalue.size_c)
+            name = mulvalue.name
+        else: # multiplication par un scalaire
             mat_res = [
                 [self.get_coef(i, j) * mulvalue
                     for j in range(1, self.size_c+1)
@@ -135,16 +141,6 @@ class Matrix:
             ]
             size = self.size
             name = "*{}".format(mulvalue) if mulvalue >= 1 else "/{}".format(1/mulvalue)
-        else:
-            assert self.size_c == mulvalue.size_l, "number of columns on the left does not match with number of lines on the right"
-            mat_res = [
-                [sum([self.get_coef(i, k) * mulvalue.get_coef(k, j) for k in range(1, self.size_c+1)]) 
-                    for j in range(1, mulvalue.size_c+1)
-                ]
-                for i in range(1, self.size_l+1)
-            ]
-            size = (self.size_l, mulvalue.size_c)
-            name = mulvalue.name
             
         return self.__conv_res(mat_res, name, size)
 
@@ -152,10 +148,10 @@ class Matrix:
         return self + (subvalue * -1)
     
     def __truediv__(self, divvalue) -> Matrix:
-        if type(divvalue) in (int, float): # division par un scalaire
+        if type(divvalue) == Matrix: 
+            pass # inversion de matrice ? TODO
+        else: # division par un scalaire
             return (self * (1/divvalue))
-        else:
-            pass # inversion de matrice ?
 
 if __name__ == '__main__':
     print("Matrices d'exemple : ")
