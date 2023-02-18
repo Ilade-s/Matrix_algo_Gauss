@@ -5,12 +5,16 @@ class Matrix:
     """
     Objet qui représente une matrice de taille (p, q) donnée à l'initialisation
 
+    Accès/modification : 
+    -----------------
+        - ligne (élément) : Matrix[<ligne> (, <colonne>)]
+
     Opérateurs implémentés : 
     -------------
         - l'addition par une matrice de même taille (respectivement la soustraction)
-        - la multiplication (à droite) : 
+        - la multiplication : 
                 - par un scalaire (respectivement la division)
-                - par une matrice de taille (q, r)
+                - par une matrice de taille compatible
     
     Opérations élémentaires :
     -------------
@@ -36,17 +40,13 @@ class Matrix:
     def transposition(self) -> Matrix:
         mat = [
             [
-                self.get_coef(i, j) for i in range(1, self.size_l+1)
+                self[i, j] for i in range(1, self.size_l+1)
             ] 
             for j in range(1, self.size_c+1)
         ]
         t_mat = Matrix((self.size_c, self.size_l), '{}t'.format(self.name))
         t_mat.set_as_mat(mat)
         return t_mat
-
-    def get_coef(self, i: int, j: int):
-        assert 0 < i <= self.size_l and 0 < j <= self.size_c, "get_coef : given coordinates are out of bounds"
-        return self.__content[i-1][j-1]
     
     def __set_size(self, size: tuple[int, int]) -> None:
         (self.size_l, self.size_c) = size
@@ -78,7 +78,7 @@ class Matrix:
     def set_elementary(self, i: int, j: int) -> None:
         assert 0 < i <= self.size_l and 0 < j <= self.size_c, "set_elementary : given coordinates are out of bounds"
         self.set_zero()
-        self.__content[i][j] = 1
+        self[i, j] = 1
     
     def __conv_res(self, mat: list[list], op: str, size: tuple[int, int]) -> Matrix:
         ret_mat = Matrix(size, name="{}{}".format(self.name, op))
@@ -102,6 +102,21 @@ class Matrix:
         for c in range(self.size_c):
             self.__content[i-1][c] += self.__content[j-1][c] * t
 
+    def __getitem__(self, key):
+        assert isinstance(key, (tuple, int)), "key must be one or two indexes ([<line>] or [<line>, <column>])"
+        if isinstance(key, tuple): # key est un couple ligne/colonne
+            key_l, key_c = key
+            assert (-self.size_l < key_l <= self.size_l) and (-self.size_c < key_c <= self.size_c), "item does not exist at coordinates {}, {}".format(key_l, key_c)
+            item = self.__content[key_l-1][key_c-1]
+        else: # key est un index
+            assert -self.size_l < key <= self.size_l, "line does not exist"
+            item = self.__content[key-1]
+        return item
+
+    def __setitem__(self, key_t: tuple[int, int], value):
+        key_l, key_c = key_t
+        self.__content[key_l-1][key_c-1] = value
+
     def __str__(self) -> str:
         s = "Matrice {} : \n".format(self.name)
         for i in range(self.size_l):
@@ -111,10 +126,11 @@ class Matrix:
         return s
     
     def __add__(self, addvalue) -> Matrix:
+        assert isinstance(addvalue, self.__class__), "addtion : seule l'addition de deux matrices est possible"
         assert addvalue.size_l == self.size_l, "addition : dimension lignes incompatible"
         assert addvalue.size_c == self.size_c, "addition : dimension colonnes incompatible"
         mat_res = [
-            [self.get_coef(i, j) + addvalue.get_coef(i, j)
+            [self[i, j] + addvalue[i, j]
                 for j in range(1, self.size_c+1)
             ] 
             for i in range(1, self.size_l+1)
@@ -122,10 +138,10 @@ class Matrix:
         return self.__conv_res(mat_res, '+{}'.format(addvalue.name), self.size)
     
     def __mul__(self, mulvalue) -> Matrix:
-        if type(mulvalue) == Matrix: 
+        if isinstance(mulvalue, self.__class__): # multiplication matrice/matrice
             assert self.size_c == mulvalue.size_l, "number of columns on the left does not match with number of lines on the right"
             mat_res = [
-                [sum([self.get_coef(i, k) * mulvalue.get_coef(k, j) for k in range(1, self.size_c+1)]) # TODO : pose probleme si self[i, k] est une constante mais pas mulvalue[k, j]
+                [sum([self[i, k] * mulvalue[k, j] for k in range(1, self.size_c+1)])
                     for j in range(1, mulvalue.size_c+1)
                 ]
                 for i in range(1, self.size_l+1)
@@ -134,7 +150,7 @@ class Matrix:
             name = mulvalue.name
         else: # multiplication par un scalaire
             mat_res = [
-                [self.get_coef(i, j) * mulvalue
+                [self[i, j] * mulvalue
                     for j in range(1, self.size_c+1)
                 ] 
                 for i in range(1, self.size_l+1)
@@ -144,11 +160,17 @@ class Matrix:
             
         return self.__conv_res(mat_res, name, size)
 
+    def __rmul__(self, mulvalue) -> Matrix:
+        return self * mulvalue
+
     def __sub__(self, subvalue) -> Matrix:
         return self + (subvalue * -1)
     
+    def __rsub__(self, subvalue) -> Matrix:
+        return self - subvalue
+    
     def __truediv__(self, divvalue) -> Matrix:
-        if type(divvalue) == Matrix: 
+        if isinstance(divvalue, self.__class__): 
             pass # inversion de matrice ? TODO
         else: # division par un scalaire
             return (self * (1/divvalue))
@@ -184,11 +206,13 @@ if __name__ == '__main__':
     addition = mat_A + mat_A
     print(addition)
     # multiplication :
-    #   - par une autre matrice
+    #   - par une autre matrice (dans les deux sens)
     multi = mat_A * mat_B
     print(multi)
+    multi = mat_B * mat_A
+    print(multi)
     #   - par un scalaire 3
-    multi_sca = mat_A * 3
+    multi_sca = 3 * mat_A
     print(multi_sca)
     # division :
     #   - par un scalaire 2
