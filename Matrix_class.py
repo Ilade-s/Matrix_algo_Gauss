@@ -1,9 +1,12 @@
+from Expression_class import Expression, Variable
 
 class Matrix: pass
 
 class Matrix:
     """
-    Objet qui représente une matrice de taille (p, q) donnée à l'initialisation
+    Objet qui représente une matrice de taille (p, q) donnée à l'initialisation.
+    
+    Initialisée à une matrice nulle de la bonne taille.
 
     Accès/modification : 
     -----------------
@@ -25,16 +28,12 @@ class Matrix:
     """
     def __init__(self, size: tuple[int, int], name: str) -> None:
         self.name = name
-        self.__content = []
         self.__set_size(size)
+        self.set_zero()
     
     @property
     def content(self) -> list[list]:
         return self.__content
-    
-    @property
-    def size(self) -> tuple[int, int]:
-        return (self.size_l, self.size_c)
 
     @property
     def transposition(self) -> Matrix:
@@ -76,7 +75,7 @@ class Matrix:
         self.set_as_mat(mat)
     
     def set_elementary(self, i: int, j: int) -> None:
-        assert 0 < i <= self.size_l and 0 < j <= self.size_c, "set_elementary : given coordinates are out of bounds"
+        assert 0 < i <= len(self) and 0 < j <= len(self[0]), "set_elementary : given coordinates are out of bounds"
         self.set_zero()
         self[i, j] = 1
     
@@ -87,20 +86,23 @@ class Matrix:
 
     def permute(self, j: int, k: int) -> None:
         """échange les lignes d'indice j et k (en place)"""
-        assert 0 < j <= self.size_l and 0 < k <= self.size_l, "transvect : line does not exist"
+        assert 0 < j <= len(self) and 0 < k <= len(self), "transvect : line does not exist"
         self.__content[j-1], self.__content[k-1] = self.__content[k-1], self.__content[j-1]
     
     def dilate(self, i: int, d: int) -> None:
         """multiplie la ligne i par le facteur d (en place)"""
-        assert 0 < i <= self.size_l, "dilate : line does not exist"
-        for j in range(self.size_c):
+        assert 0 < i <= len(self), "dilate : line does not exist"
+        for j in range(len(self[0])):
             self.__content[i-1][j] *= d
     
     def transvect(self, i: int, j: int, t: int) -> None:
         """ajoute à la ligne i la ligne j multipliée par le facteur t (en place)"""
-        assert 0 < i <= self.size_l and 0 < j <= self.size_l, "transvect : line does not exist"
-        for c in range(self.size_c):
+        assert 0 < i <= len(self) and 0 < j <= len(self), "transvect : line does not exist"
+        for c in range(len(self[0])):
             self.__content[i-1][c] += self.__content[j-1][c] * t
+
+    def __len__(self):
+        return self.size_l
 
     def __getitem__(self, key):
         assert isinstance(key, (tuple, int)), "key must be one or two indexes ([<line>] or [<line>, <column>])"
@@ -124,38 +126,41 @@ class Matrix:
                 s += '{}  '.format(self.__content[i][j])
             if i < self.size_l - 1: s += '\n'
         return s
+
+    def __repr__(self) -> str:
+        return f"{self.name}({len(self)}, {len(self[0])})"
     
     def __add__(self, addvalue) -> Matrix:
         assert isinstance(addvalue, self.__class__), "addtion : seule l'addition de deux matrices est possible"
-        assert addvalue.size_l == self.size_l, "addition : dimension lignes incompatible"
-        assert addvalue.size_c == self.size_c, "addition : dimension colonnes incompatible"
+        assert len(addvalue) == len(self), "addition : dimension lignes incompatible"
+        assert len(addvalue[0]) == len(self[0]), "addition : dimension colonnes incompatible"
         mat_res = [
             [self[i, j] + addvalue[i, j]
-                for j in range(1, self.size_c+1)
+                for j in range(1, len(self[0])+1)
             ] 
-            for i in range(1, self.size_l+1)
+            for i in range(1, len(self)+1)
         ]
-        return self.__conv_res(mat_res, '+{}'.format(addvalue.name), self.size)
+        return self.__conv_res(mat_res, '+{}'.format(addvalue.name), (len(self), len(self[0])))
     
     def __mul__(self, mulvalue) -> Matrix:
         if isinstance(mulvalue, self.__class__): # multiplication matrice/matrice
-            assert self.size_c == mulvalue.size_l, "number of columns on the left does not match with number of lines on the right"
+            assert len(self[0]) == len(mulvalue), "number of columns on the left does not match with number of lines on the right"
             mat_res = [
-                [sum([self[i, k] * mulvalue[k, j] for k in range(1, self.size_c+1)])
-                    for j in range(1, mulvalue.size_c+1)
+                [sum([self[i, k] * mulvalue[k, j] for k in range(1, len(self[0])+1)])
+                    for j in range(1, len(mulvalue[0])+1)
                 ]
-                for i in range(1, self.size_l+1)
+                for i in range(1, len(self)+1)
             ]
-            size = (self.size_l, mulvalue.size_c)
+            size = (len(self), len(mulvalue[0]))
             name = mulvalue.name
         else: # multiplication par un scalaire
             mat_res = [
                 [self[i, j] * mulvalue
-                    for j in range(1, self.size_c+1)
+                    for j in range(1, len(self[0])+1)
                 ] 
-                for i in range(1, self.size_l+1)
+                for i in range(1, len(self)+1)
             ]
-            size = self.size
+            size = (len(self), len(self[0]))
             name = "*{}".format(mulvalue) if mulvalue >= 1 else "/{}".format(1/mulvalue)
             
         return self.__conv_res(mat_res, name, size)
@@ -184,6 +189,7 @@ if __name__ == '__main__':
         [1, 4, 6]
     ])
     print(mat_A)
+    print(repr(mat_A))
     # exemple matrice B de taille (3,2)
     mat_B = Matrix((3, 2), "B")
     mat_B.set_as_mat([
@@ -192,6 +198,7 @@ if __name__ == '__main__':
         [3, 2]
     ])
     print(mat_B)
+    print(repr(mat_B))
     mat_C = Matrix((3, 3), "C")
     mat_C.set_as_mat([
         [1, 2, -3],
@@ -199,6 +206,7 @@ if __name__ == '__main__':
         [4, 3, -2]
     ])
     print(mat_C)
+    print(repr(mat_C))
     # ---------------------
     # opérateurs 
     print("Utilisation des opérateurs : ")
