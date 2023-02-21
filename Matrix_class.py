@@ -12,16 +12,17 @@ class Matrix:
     -----------------
         - ligne (élément) : Matrix[<ligne> (, <colonne>)]
 
-    Opérateurs implémentés : 
+    Opérateurs/Actions implémentés : 
     -------------
         - l'addition par une matrice de même taille (respectivement la soustraction)
         - la multiplication : 
                 - par un scalaire (respectivement la division)
                 - par une matrice de taille compatible
+        - affichage (méthode __print__ définie)
     
     Opérations élémentaires :
     -------------
-        - Transposée : self.transpose() (retourne une nouvelle matrice)
+        - Transposée : self.transposition (retourne une nouvelle matrice)
         - Permutation : self.permute(j, k) (en place)
         - Dilatation : self.dilate(i, d) (en place)
         - Transvection : self.transvect(i, j, t) (en place)
@@ -39,11 +40,11 @@ class Matrix:
     def transposition(self) -> Matrix:
         mat = [
             [
-                self[i, j] for i in range(1, self.size_l+1)
+                self[i, j] for i in range(1, len(self)+1)
             ] 
-            for j in range(1, self.size_c+1)
+            for j in range(1, len(self[0])+1)
         ]
-        t_mat = Matrix((self.size_c, self.size_l), '{}t'.format(self.name))
+        t_mat = Matrix((len(self[0]), len(self)), '{}t'.format(self.name))
         t_mat.set_as_mat(mat)
         return t_mat
     
@@ -87,21 +88,21 @@ class Matrix:
     def permute(self, j: int, k: int) -> None:
         """échange les lignes d'indice j et k (en place)"""
         assert 0 < j <= len(self) and 0 < k <= len(self), "transvect : line does not exist"
-        self.__content[j-1], self.__content[k-1] = self.__content[k-1], self.__content[j-1]
+        self[j], self[k] = self[k], self[j]
     
     def dilate(self, i: int, d: int) -> None:
         """multiplie la ligne i par le facteur d (en place)"""
         assert 0 < i <= len(self), "dilate : line does not exist"
-        for j in range(len(self[0])):
-            self.__content[i-1][j] *= d
+        for j in range(1, len(self[0])+1):
+            self[i, j] *= d
     
     def transvect(self, i: int, j: int, t: int) -> None:
         """ajoute à la ligne i la ligne j multipliée par le facteur t (en place)"""
         assert 0 < i <= len(self) and 0 < j <= len(self), "transvect : line does not exist"
-        for c in range(len(self[0])):
-            self.__content[i-1][c] += self.__content[j-1][c] * t
+        for c in range(1, len(self[0])+1):
+            self[i, c] += self[j, c] * t
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.size_l
 
     def __getitem__(self, key):
@@ -111,27 +112,34 @@ class Matrix:
             assert (-self.size_l < key_l <= self.size_l) and (-self.size_c < key_c <= self.size_c), "item does not exist at coordinates {}, {}".format(key_l, key_c)
             item = self.__content[key_l-1][key_c-1]
         else: # key est un index
-            assert -self.size_l < key <= self.size_l, "line does not exist"
+            assert -self.size_l < key <= self.size_l, "line {} does not exist".format(key)
             item = self.__content[key-1]
         return item
 
-    def __setitem__(self, key_t: tuple[int, int], value):
-        key_l, key_c = key_t
-        self.__content[key_l-1][key_c-1] = value
+    def __setitem__(self, key, value) -> None:
+        if isinstance(key, tuple): # key est un couple ligne/colonne
+            key_l, key_c = key
+            assert (-self.size_l < key_l <= self.size_l) and (-self.size_c < key_c <= self.size_c), "invalid coordinates {}, {}".format(key_l, key_c)
+            self.__content[key_l-1][key_c-1] = value
+        else: # key est un index
+            assert -self.size_l < key <= self.size_l, "line {} does not exist".format(key)
+            self.__content[key-1] = value
 
     def __str__(self) -> str:
-        s = "Matrice {} : \n".format(self.name)
-        for i in range(self.size_l):
-            for j in range(self.size_c):
-                s += '{}  '.format(self.__content[i][j])
-            if i < self.size_l - 1: s += '\n'
-        return s
+        sl = ['' for _ in range(len(self) + 1)]
+        sl[0] = "Matrice {} : ".format(self.name) + sl[0]
+        for j in range(1, len(self[0])+1): # per column index
+            len_sep = max(map(len, [str(self[i, j]) for i in range(len(self))])) + 2
+            for i in range(1, len(self)+1): # per line index
+                s_elt = str(self[i, j]) 
+                sl[i] += s_elt + ' ' * (len_sep - len(s_elt))
+        return '\n'.join(sl)
 
     def __repr__(self) -> str:
         return f"{self.name}({len(self)}, {len(self[0])})"
     
     def __add__(self, addvalue) -> Matrix:
-        assert isinstance(addvalue, self.__class__), "addtion : seule l'addition de deux matrices est possible"
+        assert isinstance(addvalue, self.__class__), "addition : seule l'addition de deux matrices est possible"
         assert len(addvalue) == len(self), "addition : dimension lignes incompatible"
         assert len(addvalue[0]) == len(self[0]), "addition : dimension colonnes incompatible"
         mat_res = [
@@ -171,9 +179,6 @@ class Matrix:
     def __sub__(self, subvalue) -> Matrix:
         return self + (subvalue * -1)
     
-    def __rsub__(self, subvalue) -> Matrix:
-        return self - subvalue
-    
     def __truediv__(self, divvalue) -> Matrix:
         if isinstance(divvalue, self.__class__): 
             pass # inversion de matrice ? TODO
@@ -181,12 +186,16 @@ class Matrix:
             return (self * (1/divvalue))
 
 if __name__ == '__main__':
+    # inconnues d'exemple
+    x = Variable('x', 1)
+    y = Variable('y', 1)
+    z = Variable('z', 1)
     print("Matrices d'exemple : ")
     # exemple matrice A de taille (2, 3)
     mat_A = Matrix((2, 3), "A")
     mat_A.set_as_mat([
-        [2, 3, 7],
-        [1, 4, 6]
+        [2, 3*x, 7],
+        [1, 4, 6*z]
     ])
     print(mat_A)
     print(repr(mat_A))
@@ -194,8 +203,8 @@ if __name__ == '__main__':
     mat_B = Matrix((3, 2), "B")
     mat_B.set_as_mat([
         [4, 5],
-        [0, 1],
-        [3, 2]
+        [0, 1*y],
+        [3*x, 2]
     ])
     print(mat_B)
     print(repr(mat_B))
