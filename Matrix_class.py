@@ -158,7 +158,7 @@ class Matrix:
             mat.set_as_mat([item])
         return mat
 
-    def __setitem__(self, key, value) -> None:
+    def __setitem__(self, key: tuple | int, value) -> None:
         if isinstance(key, tuple): # key est un couple ligne/colonne
             key_l, key_c = key
             assert (-self.size_l < key_l <= self.size_l) and (-self.size_c < key_c <= self.size_c), "invalid coordinates {}, {}".format(key_l, key_c)

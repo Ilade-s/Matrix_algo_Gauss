@@ -58,23 +58,24 @@ class Expression:
 
 class Variable:
     """représente une variable avec son facteur associé dans une matrice"""
-    def __init__(self, name: str, factor) -> None:
+    def __init__(self, name: str, factor, exponent = 1) -> None:
         self.name = name
         self.factor = factor
+        self.exp = exponent
     
     @property
     def inverse(self) -> Variable:
-        """variable avec son facteur inversé (^-1)"""
-        return self.__class__(self.name, 1 / self.factor)
+        """variable avec son facteur et son expsant inversé (^-1)"""
+        return self.__class__(self.name, 1 / self.factor, -self.exp)
 
     def __bool__(self) -> bool:
         return self.factor != 0
     
     def __str__(self) -> str:
-        return '{}{}'.format(self.factor, self.name)
+        return (str(self.factor) if self.factor != 1 else '') + self.name + ('^{}'.format(self.exp) if self.exp != 1 else '')
     
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.factor!r}, {self.name})"
+        return "{}({}, {}, {})".format(self.__class__.__name__, repr(self.factor), self.name, self.exp)
 
     def __add__(self, addvalue) -> (Expression | Variable):
         if isinstance(addvalue, self.__class__):
@@ -92,11 +93,20 @@ class Variable:
 
     def __mul__(self, mulvalue) -> (Expression | Variable):
         if isinstance(mulvalue, self.__class__):
-            return self.__class__(self.name, mulvalue * self.factor)
+            n_var = self.__class__(self.name, self.factor, self.exp)
+            i_factor = n_var
+            while i_factor.name != mulvalue.name and isinstance(i_factor.factor, self.__class__):
+                i_factor = i_factor.factor
+            if i_factor.name == mulvalue.name:
+                i_factor.factor *= mulvalue.factor
+                i_factor.exp += mulvalue.exp
+            else:    
+                i_factor.factor *= mulvalue
+            return n_var
         elif isinstance(mulvalue, Expression):
             return Expression(0, [self * v for v in mulvalue.vars if v] + [self * mulvalue.constant])
         else:
-            return self.__class__(self.name, self.factor * mulvalue)
+            return self.__class__(self.name, self.factor * mulvalue, self.exp)
     
     def __rmul__(self, mulvalue) -> (Expression | Variable):
         return self * mulvalue
@@ -107,14 +117,17 @@ class Variable:
     def __rsub__(self, subvalue) -> (Expression | Variable):
         return -1 * self + subvalue
 
-    def __truediv__(self, divvalue) -> (Expression | Variable):
+    def __truediv__(self, divvalue) -> Variable:
         if isinstance(divvalue, Variable):
             return self * divvalue.inverse
         else:
-            return self.__class__(self.name, self.factor / divvalue)
+            return self.__class__(self.name, self.factor / divvalue, self.exp)
     
-    def __rdiv__(self, divvalue): # uniquement si divvalue est une constante
-        pass # TODO : nécessite une changement de structure : attribut "exposant" ? 
+    def __rtruediv__(self, divvalue) -> Variable:
+        return divvalue * self.inverse
+
+    def __pow__(self, power):
+        return self.__class__(self.name, )
 
 if __name__ == '__main__':
     var_1 = Variable('x', 2) # 2x
@@ -125,7 +138,7 @@ if __name__ == '__main__':
     exp_1 = 4 - var_1 + var_2 - 5 # -2x + 3y + -1
     print(exp_1)
     print(repr(exp_1))
-    exp_1x = exp_1 * var_3
+    exp_1x = exp_1 * var_3 # -2x^2 + 3yx + -x
     print(exp_1x)
     print(repr(exp_1x))
     exp_1x += var_3 + var_2 
@@ -134,4 +147,7 @@ if __name__ == '__main__':
     var_12 = var_1 * var_2 * var_1 # 12yxx
     print(var_12) # human readable
     print(repr(var_12)) # debug
+    var_1_inv = 2 / var_1 # x^-1
+    print(var_1_inv)
+    print(repr(var_1_inv))
 
