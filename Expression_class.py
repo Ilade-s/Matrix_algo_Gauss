@@ -14,7 +14,7 @@ class Expression:
     def termes(self) -> list:
         return (self.vars + [self.constant])
     
-    def non_zero(self, constant_included=False) -> list[Variable]:
+    def non_zero(self, constant_included=False) -> list[Variable | Any]:
         """return the variables that have a non zero factor (plus the constant if constant_included set to True)"""
         res = [v for v in self.vars if v] 
         if constant_included and self.constant:
@@ -53,31 +53,32 @@ class Expression:
 
     def __mul__(self, mulvalue) -> Expression: 
         if isinstance(mulvalue, self.__class__): # dévellopement
-            n_vars = []
-            n_const = 0
+            res = self.__class__(0, [])
             for t in self.non_zero(True):
                 for t_mul in mulvalue.termes:
-                    nt = t * t_mul
-                    if isinstance(nt, Variable):
-                        n_vars.append(nt)
-                    else:
-                        n_const += nt
-            res = self.__class__(n_const, [])
-            for v in n_vars:
-                res += v
+                    res += t * t_mul
             return res
         elif isinstance(mulvalue, Variable):
-            return self.__class__(0, [v * mulvalue for v in self.vars if v] + [self.constant * mulvalue])
+            res = self.__class__(0, [])
+            for t in self.non_zero(True):
+                res += t * mulvalue
+            return res
         else:
-            return self.__class__(self.constant * mulvalue, [v * mulvalue for v in self.vars if v])
+            return self.__class__(self.constant * mulvalue, [v * mulvalue for v in self.non_zero()])
     
     def __rmul__(self, mulvalue) -> Expression:
         return self * mulvalue
     
-    def __div__(self, divvalue) -> Expression: # TODO
+    def __div__(self, divvalue) -> Expression: # TODO : division par Expression (utilisation de **-1)
+        assert not isinstance(divvalue, self.__class__), "division par une autre expression non supportée"
+        return self * divvalue ** -1
+    
+    def __rdiv__(self, divvalue) -> Expression:
         pass
     
-    def __pow__(self, power) -> Expression:
+    def __pow__(self, power) -> Expression: # TODO : support pour power < 0 ?
+        #if power < 0:
+        #    return 1 / self ** abs(power)
         res = 1
         for _ in range(power):
             res *= self
