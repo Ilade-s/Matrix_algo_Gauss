@@ -20,9 +20,6 @@ class Expression:
         if constant_included and self.constant:
             res.append(self.constant)
         return res
-
-    def __len__(self) -> int:
-        return len(self.non_zero(True))
     
     def __str__(self) -> str:
         return ' + '.join(map(str, self.non_zero(True)))
@@ -101,7 +98,7 @@ class Variable:
     @property
     def constant_factor(self):
         i_self = self
-        while isinstance(i_self, self.__class__): # liste des inconnues de self
+        while isinstance(i_self, self.__class__): # parcourir self et ses facteurs jusqu'au facteur constant
             i_self = i_self.factor
         return i_self
     
