@@ -60,7 +60,7 @@ class Matrix:
         self.__content = mat
     
     def set_identity(self) -> None:
-        assert self.size_l == self.size_c
+        assert len(self) == self.size_c, "la matrice doit être une matrice carrée"
         mat = [
             [1 if i == j else 0 
                 for j in range(self.size_c)
@@ -84,14 +84,14 @@ class Matrix:
         self[i, j] = 1
     
     def __conv_res(self, mat: list[list], op: str, size: tuple[int, int]) -> Matrix:
-        ret_mat = self.__class__(size, name="{}{}".format(self.name, op))
+        ret_mat = self.__class__(size, "{}{}".format(self.name, op))
         ret_mat.set_as_mat(mat)
         return ret_mat
 
-    def permute(self, j: int, k: int) -> None: # TODO
+    def permute(self, j: int, k: int) -> None: # TODO : à refaire après __setitem__
         """échange les lignes d'indice j et k (en place)"""
         assert 0 < j <= len(self) and 0 < k <= len(self), "transvect : line does not exist"
-        self[j], self[k] = self.__content[k-1], self.__content[j-1] # A refaire après __setitem__
+        self[j], self[k] = self.__content[k-1], self.__content[j-1]
     
     def dilate(self, i: int, d: int) -> None:
         """multiplie la ligne i par le facteur d (en place)"""
@@ -231,6 +231,15 @@ class Matrix:
             pass # inversion de matrice ? TODO
         else: # division par un scalaire
             return (self * (1/divvalue))
+    
+    def __pow__(self, power) -> Matrix:
+        assert len(self) == self.size_c, "la matrice doit être une matrice carrée"
+        res = self.__class__((len(self), len(self)), 'tmp')
+        res.set_identity()
+        for _ in range(power):
+            res *= self
+        res.name = self.name + "^{}".format(power) 
+        return res
 
 if __name__ == '__main__':
     # inconnues d'exemple
@@ -265,6 +274,7 @@ if __name__ == '__main__':
         [4, 3, -2]
     ])
     print(mat_C)
+    print(mat_C**2)
     print(repr(mat_C))
     # ---------------------
     # opérateurs 
