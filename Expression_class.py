@@ -13,12 +13,19 @@ class Expression:
     @property
     def termes(self) -> list:
         return (self.vars + [self.constant])
+    
+    def non_zero(self, constant_included=False) -> list[Variable]:
+        """return the variables that have a non zero factor (plus the constant if constant_included set to True)"""
+        res = [v for v in self.vars if v] 
+        if constant_included and self.constant:
+            res.append(self.constant)
+        return res
 
     def __len__(self) -> int:
-        return len([t for t in self.termes if t])
+        return len(self.non_zero(True))
     
     def __str__(self) -> str:
-        return ' + '.join(map(str, [t for t in self.termes if t]))
+        return ' + '.join(map(str, self.non_zero(True)))
     
     def __repr__(self) -> str:
         vars_repr = ' ; '.join(map(repr, [v for v in self.vars if v]))
@@ -26,7 +33,7 @@ class Expression:
 
     def __add__(self, addvalue) -> Expression:
         if isinstance(addvalue, Variable): 
-            n_vars = [*self.vars]
+            n_vars = self.non_zero()
             for i in range(len(n_vars)): 
                 if addvalue.is_same_vars(n_vars[i]): # il faut vérifier la présence ou non de cette combinaison (produit) d'inconnues dans l'équation
                     n_vars[i] += addvalue
@@ -51,7 +58,7 @@ class Expression:
         if isinstance(mulvalue, self.__class__): # dévellopement
             n_vars = []
             n_const = 0
-            for t in [t for t in self.termes if t]:
+            for t in self.non_zero(True):
                 for t_mul in mulvalue.termes:
                     nt = t * t_mul
                     if isinstance(nt, Variable):
@@ -115,7 +122,7 @@ class Variable:
         return res 
 
     def __bool__(self) -> bool:
-        return self.factor != 0
+        return self.constant_factor != 0
     
     def __str__(self) -> str:
         return (str(self.factor) if self.factor != 1 else '') + self.name + ('^{}'.format(self.exp) if self.exp != 1 else '')
