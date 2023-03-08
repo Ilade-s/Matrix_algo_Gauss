@@ -2,6 +2,10 @@ from Expression_class import Expression, Variable
 
 class Matrix: pass
 
+class Identity: pass
+
+class Elementary: pass
+
 class Matrix:
     """
     Objet qui représente une matrice de taille (p, q) donnée à l'initialisation.
@@ -30,7 +34,7 @@ class Matrix:
         - Dilatation : self.dilate(i, d) (en place)
         - Transvection : self.transvect(i, j, t) (en place)
     """
-    def __init__(self, size: tuple[int, int], name: str) -> None:
+    def __init__(self, size: tuple[int, int] | int, name: str) -> None:
         self.name = name
         self.__set_size(size)
         self.set_zero()
@@ -51,23 +55,17 @@ class Matrix:
         t_mat.set_as_mat(mat)
         return t_mat
     
-    def __set_size(self, size: tuple[int, int]) -> None:
-        (self.size_l, self.size_c) = size
+    def __set_size(self, size: tuple[int, int] | int) -> None:
+        if isinstance(size, int):
+            self.size_l = size
+            self.size_c = size
+        else:
+            (self.size_l, self.size_c) = size
     
     def set_as_mat(self, mat: list[list]) -> None:
         assert len(mat) == self.size_l, "dimension lignes incompatible"
         assert len(mat[0]) == self.size_c, "dimension colonnes incompatible"
         self.__content = mat
-    
-    def set_identity(self) -> None:
-        assert len(self) == self.size_c, "la matrice doit être une matrice carrée"
-        mat = [
-            [1 if i == j else 0 
-                for j in range(self.size_c)
-            ] 
-            for i in range(self.size_l)
-        ]
-        self.set_as_mat(mat)
     
     def set_zero(self) -> None:
         mat = [
@@ -78,32 +76,44 @@ class Matrix:
         ]
         self.set_as_mat(mat)
     
-    def set_elementary(self, i: int, j: int) -> None:
-        assert 0 < i <= len(self) and 0 < j <= self.size_c, "set_elementary : given coordinates are out of bounds"
-        self.set_zero()
-        self[i, j] = 1
-    
     def __conv_res(self, mat: list[list], op: str, size: tuple[int, int]) -> Matrix:
-        ret_mat = self.__class__(size, "{}{}".format(self.name, op))
+        ret_mat = Matrix(size, "{}{}".format(self.name, op))
         ret_mat.set_as_mat(mat)
         return ret_mat
 
-    def permute(self, j: int, k: int) -> None: # TODO : à refaire après __setitem__
+    def permute(self, j: int, k: int) -> None: # voir pour faire transpostion de la même manière (avec res = self * P)
         """échange les lignes d'indice j et k (en place)"""
         assert 0 < j <= len(self) and 0 < k <= len(self), "transvect : line does not exist"
-        self[j], self[k] = self.__content[k-1], self.__content[j-1]
-    
+        P = Matrix(self.size_c, "P")
+        for i in range(1, len(self)+1):
+            c = i
+            if i == j:
+                c = k
+            elif i == k:
+                c = j
+            P += Elementary(i, c, self.size_c, '')
+        print(P)
+        res = P * self
+        self.set_as_mat(res.content)
+
     def dilate(self, i: int, d: int) -> None:
         """multiplie la ligne i par le facteur d (en place)"""
         assert 0 < i <= len(self), "dilate : line does not exist"
-        for j in range(1, self.size_c+1):
-            self[i, j] *= d
+        self[i] *= d
     
-    def transvect(self, i: int, j: int, t: int) -> None:
-        """ajoute à la ligne i la ligne j multipliée par le facteur t (en place)"""
-        assert 0 < i <= len(self) and 0 < j <= len(self), "transvect : line does not exist"
-        for c in range(1, self.size_c+1):
-            self[i, c] += self[j, c] * t
+    def transvect(self, i: int, j: int, t: int, colonne = False) -> None:
+        """ajoute à la ligne/colonne i la ligne/colonne j multipliée par le facteur t (en place)"""
+        if colonne:    
+            assert 0 < i <= self.size_c and 0 < j <= self.size_c, "transvect : column i or j does not exist"
+        else:
+            assert 0 < i <= len(self) and 0 < j <= len(self), "transvect : line i or j does not exist"
+        T_mat = Identity(self.size_c, 'T')
+        T_mat[i, j] = t
+        if colonne: # transvection de colonne
+            res = self * T_mat
+        else:
+            res = T_mat * self
+        self.set_as_mat(res.content)
 
     def __len__(self) -> int:
         return self.size_l
@@ -118,14 +128,14 @@ class Matrix:
                         [self[i, j] for j in range(*key_c.indices(self.size_c+1))] 
                         for i in range(*key_l.indices(len(self)+1))
                     ]
-                    mat = self.__class__((len(item), len(item[0])), 
+                    mat = Matrix((len(item), len(item[0])), 
                                          "{}({}:{}:{}, {}:{}:{})".format(
                                                 self.name, *key_l.indices(len(self)+1), *key_c.indices(self.size_c+1)))
                     mat.set_as_mat(item)
 
                 else: # plusieurs éléments d'une même colonne key_c
                     item = [self[i, key_c] for i in range(*key_l.indices(len(self)+1))]
-                    mat = self.__class__((1, len(item)), 'tmp')
+                    mat = Matrix((1, len(item)), 'tmp')
                     mat.set_as_mat([item])
                     mat = mat.transposition
                     mat.name = "{}({}:{}:{}, {})".format(
@@ -134,7 +144,7 @@ class Matrix:
             else: # une seule ligne
                 if isinstance(key_c, slice): # plusieurs éléments d'une même ligne key_l
                     item = [self[key_l, j] for j in range(*key_c.indices(self.size_c+1))]
-                    mat = self.__class__((1, len(item)), 
+                    mat = Matrix((1, len(item)), 
                                         "{}({}, {}:{}:{})".format(
                                             self.name, key_l , *key_c.indices(len(self)+1)))
                     mat.set_as_mat([item])
@@ -145,7 +155,7 @@ class Matrix:
                 
         elif isinstance(key, slice): # key est une suite de lignes
             item = [self.__content[i-1] for i in range(*key.indices(len(self)+1))]
-            mat = self.__class__((len(item), self.size_c), 
+            mat = Matrix((len(item), self.size_c), 
                                         "{}({}:{}:{})".format(
                                             self.name, *key.indices(len(self)+1)))
             mat.set_as_mat(item)
@@ -153,7 +163,7 @@ class Matrix:
         else: # key est un index
             assert -self.size_l < key <= self.size_l, "line {} does not exist".format(key)
             item = self.__content[key-1]
-            mat = self.__class__((1, self.size_c), 
+            mat = Matrix((1, self.size_c), 
                                         "{}({}, :)".format(self.name, key))
             mat.set_as_mat([item])
         return mat
@@ -164,7 +174,7 @@ class Matrix:
             assert (-self.size_l < key_l <= self.size_l) and (-self.size_c < key_c <= self.size_c), "invalid coordinates {}, {}".format(key_l, key_c)
             self.__content[key_l-1][key_c-1] = value
         else: # key est un index
-            assert isinstance(value, (list, self.__class__)), "value must be either a list or a {} object".format(self.__class__.__name__)
+            assert isinstance(value, (list, Matrix)), "value must be either a list or a {} object".format(Matrix.__name__)
             assert -self.size_l < key <= self.size_l, "line {} does not exist".format(key)
             if isinstance(value, list): # value est une liste de coefs
                 self.__content[key-1] = value
@@ -186,7 +196,7 @@ class Matrix:
         return f"{self.name}({len(self)}, {self.size_c})"
     
     def __add__(self, addvalue) -> Matrix:
-        assert isinstance(addvalue, self.__class__), "addition : seule l'addition de deux matrices est possible"
+        assert isinstance(addvalue, Matrix), "addition : seule l'addition de deux matrices est possible"
         assert len(addvalue) == len(self), "addition : dimension lignes incompatible"
         assert addvalue.size_c == self.size_c, "addition : dimension colonnes incompatible"
         mat_res = [
@@ -198,7 +208,7 @@ class Matrix:
         return self.__conv_res(mat_res, '+{}'.format(addvalue.name), (len(self), self.size_c))
     
     def __mul__(self, mulvalue) -> Matrix:
-        if isinstance(mulvalue, self.__class__): # multiplication matrice/matrice
+        if isinstance(mulvalue, Matrix): # multiplication matrice/matrice
             assert self.size_c == len(mulvalue), "number of columns on the left does not match with number of lines on the right"
             mat_res = [
                 [sum([self[i, k] * mulvalue[k, j] for k in range(1, self.size_c+1)])
@@ -227,19 +237,40 @@ class Matrix:
         return self + (subvalue * -1)
     
     def __truediv__(self, divvalue) -> Matrix:
-        if isinstance(divvalue, self.__class__): 
+        if isinstance(divvalue, Matrix): 
             pass # inversion de matrice ? TODO
         else: # division par un scalaire
             return (self * (1/divvalue))
     
     def __pow__(self, power) -> Matrix:
         assert len(self) == self.size_c, "la matrice doit être une matrice carrée"
-        res = self.__class__((len(self), len(self)), 'tmp')
-        res.set_identity()
+        assert power >= 0, "l'exposant doit être positif ou nul"
+        res = Identity(len(self), 'tmp')
         for _ in range(power):
             res *= self
         res.name = self.name + "^{}".format(power) 
         return res
+
+class Elementary(Matrix):
+    """Matrice élémentaire E (avec E[i, j] = 1)
+    \nSubclass de Matrix"""
+    def __init__(self, i: int, j: int, size: tuple[int, int] | int, name = '') -> None:
+        if not name:
+            name = 'E({}, {})'.format(size, i, j)
+        super().__init__(size, name)
+        assert 0 < i <= len(self) and 0 < j <= self.size_c, "set_elementary : given coordinates ({}, {}) are out of bounds".format(i, j)
+        self[i, j] = 1
+
+class Identity(Matrix):
+    """Matrice identité I (avec I[i, j] = 1 si i == j)
+    \nSubclass de Matrix"""
+    def __init__(self, size: int, name = '') -> None:
+        if not name:
+            name = 'I{}'.format(size)
+        super().__init__(size, name)
+        for i in range(size):
+            for j in range(size):
+                self[i, j] = 1 if i == j else 0
 
 if __name__ == '__main__':
     # inconnues d'exemple
@@ -316,4 +347,5 @@ if __name__ == '__main__':
     mat_C.transvect(i, j, t)
     print("T{}{}({})\n".format(i, j, t), mat_C, sep='')
     mat_C.transvect(i, j, -t) # inverse
+    print(mat_C)
     
