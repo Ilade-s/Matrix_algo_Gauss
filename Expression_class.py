@@ -69,16 +69,16 @@ class Expression:
     def __rmul__(self, mulvalue) -> Expression:
         return self * mulvalue
     
-    def __div__(self, divvalue) -> Expression: # TODO : division par Expression (utilisation de **-1)
+    def __truediv__(self, divvalue) -> Expression:
         assert not isinstance(divvalue, self.__class__), "division par une autre expression non supportée"
         return self * divvalue ** -1
     
-    def __rdiv__(self, divvalue) -> Expression:
-        pass
+    def __rtruediv__(self, divvalue) -> Expression:
+        if not self.non_zero() and self.constant: # Exp is a constant (and != 0)
+            return divvalue * self ** -1
     
-    def __pow__(self, power) -> Expression: # TODO : support pour power < 0 ?
-        #if power < 0:
-        #    return 1 / self ** abs(power)
+    def __pow__(self, power) -> Expression: # TODO
+        assert power >= 0, "l'exposant doit être positif ou nul"
         res = 1
         for _ in range(power):
             res *= self
