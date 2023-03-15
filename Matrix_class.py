@@ -19,7 +19,7 @@ class Matrix:
     -------------
         - l'addition par une matrice de même taille (respectivement la soustraction)
         - la multiplication : 
-                - par un scalaire (respectivement la division)
+                - par un scalaire (support de Variable et Expression) (respectivement la division)
                 - par une matrice de taille compatible
         - affichage (méthode __print__ et __repr__ définies)
     
@@ -169,6 +169,7 @@ class Matrix:
             if isinstance(value, list): # value est une liste de coefs
                 self.__content[key-1] = value
             else: # value est une matrice ligne
+                assert self.size_c == value.size_c, "la matrice ligne doit avoir le même nombre de colonnes"
                 for c in range(1, self.size_c+1):
                     self.__content[key-1][c-1] = value[1, c]
 
@@ -208,7 +209,7 @@ class Matrix:
             ]
             size = (len(self), mulvalue.size_c)
             name = mulvalue.name
-        else: # multiplication par un scalaire
+        else: # multiplication par un scalaire/Variable/Expression
             mat_res = [
                 [self[i, j] * mulvalue
                     for j in range(1, self.size_c+1)

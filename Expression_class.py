@@ -25,7 +25,7 @@ class Expression:
         return ' + '.join(map(str, self.non_zero(True)))
     
     def __repr__(self) -> str:
-        vars_repr = ' ; '.join(map(repr, [v for v in self.vars if v]))
+        vars_repr = ' ; '.join(map(repr, self.non_zero()))
         return '{}(\n\tconst = {},\n\t{})'.format(self.__class__.__name__, self.constant, vars_repr)
 
     def __add__(self, addvalue) -> Expression:
@@ -93,7 +93,7 @@ class Variable:
     
     @property
     def inverse(self) -> Variable:
-        """variable avec son facteur et son expsant inversé (^-1)"""
+        """variable avec son facteur et son exposant inversé (^-1)"""
         return self.__class__(self.name, 1 / self.factor, -self.exp)
 
     @property
