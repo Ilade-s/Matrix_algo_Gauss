@@ -48,6 +48,12 @@ class Expression:
     def __sub__(self, subvalue) -> Expression:
         return self + subvalue * (-1)
     
+    def __radd__(self, addvalue) -> Expression:
+        return self + addvalue
+    
+    def __rsub__(self, subvalue) -> Expression:
+        return self * (-1) + subvalue
+    
     def __copy__(self) -> Expression:
         return self.__class__(self.constant, self.vars)
 

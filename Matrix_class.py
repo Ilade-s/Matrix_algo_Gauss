@@ -62,10 +62,14 @@ class Matrix:
         else:
             (self.size_l, self.size_c) = size
     
-    def set_as_mat(self, mat: list[list]) -> None:
-        assert len(mat) == self.size_l, "dimension lignes incompatible"
-        assert len(mat[0]) == self.size_c, "dimension colonnes incompatible"
-        self.__content = mat
+    def set_as_mat(self, mat: list[list] | Matrix) -> None:
+        assert len(mat) == len(self), "dimension lignes incompatible : self = {} ; mat = {}".format(len(self), len(mat))
+        if isinstance(mat, list):    
+            assert len(mat[0]) == self.size_c, "dimension colonnes incompatible : self = {} ; mat = {}".format(self.size_c, len(mat[0]))
+            self.__content = mat
+        else:
+            assert mat.size_c == self.size_c, "dimension colonnes incompatible : self = {} ; mat = {}".format(self.size_c, mat.size_c)
+            self.__content = mat.content
     
     def set_zero(self) -> None:
         mat = [
@@ -84,36 +88,19 @@ class Matrix:
     def permute(self, j: int, k: int) -> None: # voir pour faire transpostion de la même manière (avec res = self * P)
         """échange les lignes d'indice j et k (en place)"""
         assert 0 < j <= len(self) and 0 < k <= len(self), "transvect : line does not exist"
-        P = Matrix(self.size_c, "P")
-        for i in range(1, len(self)+1):
-            c = i
-            if i == j:
-                c = k
-            elif i == k:
-                c = j
-            P += Elementary(i, c, self.size_c, '')
-        print(P)
-        res = P * self
-        self.set_as_mat(res.content)
+        res = Permutation(j, k, len(self)) * self
+        self.set_as_mat(res)
 
     def dilate(self, i: int, d: int) -> None:
         """multiplie la ligne i par le facteur d (en place)"""
         assert 0 < i <= len(self), "dilate : line does not exist"
-        self[i] *= d
+        res = Dilatation(i, d, len(self)) * self
+        self.set_as_mat(res)
     
-    def transvect(self, i: int, j: int, t: int, colonne = False) -> None:
-        """ajoute à la ligne/colonne i la ligne/colonne j multipliée par le facteur t (en place)"""
-        if colonne:    
-            assert 0 < i <= self.size_c and 0 < j <= self.size_c, "transvect : column i or j does not exist"
-        else:
-            assert 0 < i <= len(self) and 0 < j <= len(self), "transvect : line i or j does not exist"
-        T_mat = Identity(self.size_c, 'T')
-        T_mat[i, j] = t
-        if colonne: # transvection de colonne
-            res = self * T_mat
-        else:
-            res = T_mat * self
-        self.set_as_mat(res.content)
+    def transvect(self, i: int, j: int, t: int) -> None:
+        """ajoute à la ligne i la ligne j multipliée par le facteur t (en place)"""
+        res = Transvection(i, j, t, len(self)) * self
+        self.set_as_mat(res)
 
     def __len__(self) -> int:
         return self.size_l
@@ -259,19 +246,51 @@ class Elementary(Matrix):
         if not name:
             name = 'E({}, {})'.format(size, i, j)
         super().__init__(size, name)
-        assert 0 < i <= len(self) and 0 < j <= self.size_c, "set_elementary : given coordinates ({}, {}) are out of bounds".format(i, j)
+        assert 0 < i <= len(self) and 0 < j <= self.size_c, "{} : given coordinates ({}, {}) are out of bounds".format(self.__repr__(), i, j)
         self[i, j] = 1
 
 class Identity(Matrix):
-    """Matrice identité I (avec I[i, j] = 1 si i == j)
+    """Matrice identité I (avec I[i, j] = 1 si i == j, sinon = 0)
     \nSubclass de Matrix"""
     def __init__(self, size: int, name = '') -> None:
         if not name:
             name = 'I{}'.format(size)
         super().__init__(size, name)
-        for i in range(size):
-            for j in range(size):
-                self[i, j] = 1 if i == j else 0
+        for c in range(size):
+            self[c, c] = 1
+
+class Dilatation(Identity):
+    """Matrice de dilatation de la ligne i, de facteur d (avec I[n\\\{i}, j] = 1 si n\\\{i} == j et I[i, j] = d) : D{i}({d})
+    \nSubclass de Identity"""
+    def __init__(self, i: int, d, size: int, name = '') -> None:
+        if not name:
+            name = 'D{}({})'.format(i, d)
+        super().__init__(size, name)
+        assert 0 < i <= len(self), "{} : given line {} is out of bounds".format(self.__repr__(), i)
+        for c in range(size):
+            self[c, c] = d if c == i else 1
+
+class Permutation(Identity):
+    """Matrice de permutation P des lignes/colonnes j et k : P{j}{k}
+    \nSubclass de Identity"""
+    def __init__(self, j: int, k: int, size: int, name='') -> None:
+        if not name:
+            name = 'P({},{})'.format(j, k)
+        super().__init__(size, name)
+        self[j, j] = 0
+        self[k, k] = 0
+        self[j, k] = 1
+        self[k, j] = 1
+
+class Transvection(Identity):
+    """Matrice de transvection de la ligne i par la ligne j facteur t : T{i}{j}({t})
+    \nSubclass de Identity"""
+    def __init__(self, i: int, j: int, t, size: int, name='') -> None:
+        if not name:
+            name = "T{}{}({})".format(i, j, t)
+        super().__init__(size, name)
+        assert i != j, "{} : line i and j are equal (= {})".format(self.__repr__(), i)
+        self[i, j] = t
 
 if __name__ == '__main__':
     # inconnues d'exemple
@@ -339,7 +358,7 @@ if __name__ == '__main__':
     print("P({},{}) :\n".format(j, k), mat_C, sep='')
     mat_C.permute(j, k) # inverse
     # dilatation
-    d = 4; i = 2
+    d = Variable("d", 3); i = 2
     mat_C.dilate(i, d)
     print("D{}({}) :\n".format(i, d), mat_C, sep='')
     mat_C.dilate(i, 1/d) # inverse 
