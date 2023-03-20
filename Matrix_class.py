@@ -16,7 +16,7 @@ class Matrix:
     -----------------
         - ligne (élément) : Matrix[<ligne> (, <colonne>)]
         - accès uniquement (TODO : support pour la modification) : 
-            - <ligne> et <colonne> peuvent être soit des entiers, soit des sous-parties (objet Slice au format <start>:<stop>:<step>)
+            - <ligne> et <colonne> peuvent être soit des entiers, soit des sous-parties (objet Slice au format <start>:<stop>:<step> : si <start> est fourni, la ligne colonne correspondante ne sera pas incluse)
             - si l'un des deux (ou les deux) sont des sous-parties, alors le résultat de l'accès sera une matrice issue de la matrice originelle (avec un nom automatique).
 
     Opérateurs/Actions implémentés : 
@@ -54,6 +54,10 @@ class Matrix:
         t_mat = Matrix((self.size_c, len(self)), '{}t'.format(self.name))
         t_mat.set_as_mat(mat)
         return t_mat
+
+    @property
+    def size(self) -> tuple[int, int]:
+        return (self.size_l, self.size_c)
     
     def __set_size(self, size: tuple[int, int] | int) -> None:
         if isinstance(size, int):
@@ -62,13 +66,28 @@ class Matrix:
         else:
             (self.size_l, self.size_c) = size
     
-    def set_as_mat(self, mat: list[list] | Matrix) -> None:
-        assert len(mat) == len(self), "dimension lignes incompatible : self = {} ; mat = {}".format(len(self), len(mat))
-        if isinstance(mat, list):    
-            assert len(mat[0]) == self.size_c, "dimension colonnes incompatible : self = {} ; mat = {}".format(self.size_c, len(mat[0]))
+    def set_as_mat(self, mat: list[list] | Matrix, strict=True) -> None:
+        """sets the matrix to the contents of mat (supports 2D lists or Matrix objets).
+        \nstrict flag, if set, ensures that the size of mat is identical to this matrix, if not, changes the size to match mat (true by default)"""
+        if not mat:
+            if not strict:
+                self.size_l = len(mat)
+            return
+        mat_is_list = isinstance(mat, list)
+        if strict:    
+            assert len(mat) == len(self), "dimension lignes incompatible : self = {} ; mat = {}".format(len(self), len(mat))
+            if mat_is_list:
+                assert len(mat[0]) == self.size_c, "dimension colonnes incompatible : self = {} ; mat = {}".format(self.size_c, len(mat[0]))
+            else:
+                assert mat.size_c == self.size_c, "dimension colonnes incompatible : self = {} ; mat = {}".format(self.size_c, mat.size_c)
+        else:
+            if mat_is_list:
+                self.__set_size(len(mat), len(mat[0]))
+            else:
+                self.__set_size(mat.size)
+        if mat_is_list:    
             self.__content = mat
         else:
-            assert mat.size_c == self.size_c, "dimension colonnes incompatible : self = {} ; mat = {}".format(self.size_c, mat.size_c)
             self.__content = mat.content
     
     def set_zero(self) -> None:
@@ -104,24 +123,26 @@ class Matrix:
 
     def __len__(self) -> int:
         return self.size_l
+    
+    def __bool__(self) -> bool:
+        return bool(len(self))
 
     def __getitem__(self, key: tuple | int | slice):
         assert isinstance(key, (tuple, int, slice)), "key must be one or two indexes ([<line>] or [<line>, <column>])"
         if isinstance(key, tuple): # key est un couple ligne/colonne
             key_l, key_c = key
-            if isinstance(key_l, slice): # suite de lignes                
+            if isinstance(key_l, slice): # suite de lignes
                 if isinstance(key_c, slice): # sous matrice
-                    item = [
-                        [self[i, j] for j in range(*key_c.indices(self.size_c+1))] 
-                        for i in range(*key_l.indices(len(self)+1))
+                    item = [[self[i+1, j+1] for j in range(*key_c.indices(self.size_c))] 
+                        for i in range(*key_l.indices(len(self)))
                     ]
                     mat = Matrix((len(item), len(item[0])), 
-                                         "{}({}:{}:{}, {}:{}:{})".format(
-                                                self.name, *key_l.indices(len(self)+1), *key_c.indices(self.size_c+1)))
+                        "{}({}:{}:{}, {}:{}:{})".format(
+                            self.name, *key_l.indices(len(self)), *key_c.indices(self.size_c)))
                     mat.set_as_mat(item)
 
                 else: # plusieurs éléments d'une même colonne key_c
-                    item = [self[i, key_c] for i in range(*key_l.indices(len(self)+1))]
+                    item = [self[i+1, key_c] for i in range(*key_l.indices(len(self)))]
                     mat = Matrix((1, len(item)), 'tmp')
                     mat.set_as_mat([item])
                     mat = mat.transposition
@@ -130,10 +151,10 @@ class Matrix:
     
             else: # une seule ligne
                 if isinstance(key_c, slice): # plusieurs éléments d'une même ligne key_l
-                    item = [self[key_l, j] for j in range(*key_c.indices(self.size_c+1))]
+                    item = [self[key_l, j+1] for j in range(*key_c.indices(self.size_c))]
                     mat = Matrix((1, len(item)), 
-                                        "{}({}, {}:{}:{})".format(
-                                            self.name, key_l , *key_c.indices(len(self)+1)))
+                        "{}({}, {}:{}:{})".format(
+                            self.name, key_l , *key_c.indices(len(self)+1)))
                     mat.set_as_mat([item])
                 else: # un seul item à l'index (key_l, key_c)
                     assert (-self.size_l < key_l <= self.size_l) and (-self.size_c < key_c <= self.size_c), "item does not exist at coordinates {}, {}".format(key_l, key_c)
@@ -150,8 +171,7 @@ class Matrix:
         else: # key est un index
             assert -self.size_l < key <= self.size_l, "line {} does not exist".format(key)
             item = self.__content[key-1]
-            mat = Matrix((1, self.size_c), 
-                                        "{}({}, :)".format(self.name, key))
+            mat = Matrix((1, self.size_c), "{}({}, :)".format(self.name, key))
             mat.set_as_mat([item])
         return mat
 
@@ -306,7 +326,7 @@ if __name__ == '__main__':
     ])
     print(mat_A)
     print(repr(mat_A))
-    sous_mat_A = mat_A[1:, 2:]
+    sous_mat_A = mat_A[:2, :]
     print(sous_mat_A) # exemple sous matrice
     print(repr(sous_mat_A))
     # exemple matrice B de taille (3,2)
