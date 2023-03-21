@@ -16,13 +16,14 @@ class Matrix:
     -----------------
         - ligne (élément) : Matrix[<ligne> (, <colonne>)]
         - en accès uniquement : 
-            - <ligne> et <colonne> peuvent être soit des entiers, soit des sous-parties (objet Slice au format <start>:<stop>:<step>)
+            - <ligne> et <colonne> peuvent être soit des entiers, soit des sous-parties (i.e. objet Slice au format <start>:<stop>:<step>)
             - si l'un des deux (ou les deux) sont des sous-parties, alors le résultat de l'accès sera une matrice issue de la matrice originelle (avec un nom automatique).
-            - Interprétation des slices (IMPORTANT) :
-                - si <start> est fourni, la ligne/colonne correspondante ne sera pas incluse
-                - au contraire, si <stop> est fourni, la ligne/colonne correspondante sera bien incluse
-                - si <start> = 0, il sera interprété de manière identique à -1
-
+            - Interprétation des indices (IMPORTANT) :
+                - Entiers : un 0 est interprété comme un -1 (i.e. dernière ligne/colonne)
+                - Slices :
+                    - si <start> est fourni, la ligne/colonne correspondante ne sera pas incluse
+                    - au contraire, si <stop> est fourni, la ligne/colonne correspondante sera bien incluse
+                    - si <start> = 0, il sera interprété comme si <start> n'a pas été fourni
 
     Opérateurs/Actions implémentés : 
     -------------
@@ -147,7 +148,10 @@ class Matrix:
                     item = [[self[i+1, j+1] for j in range(*key_c.indices(self.size_c))] 
                         for i in range(*key_l.indices(len(self)))
                     ]
-                    mat = Matrix((len(item), len(item[0])), 
+                    lc = 0
+                    if len(item):
+                        lc = len(item[0])
+                    mat = Matrix((len(item), lc), 
                         "{}({}:{}:{}, {}:{}:{})".format(
                             self.name, *key_l.indices(len(self)), *key_c.indices(self.size_c)))
                     mat.set_as_mat(item)
