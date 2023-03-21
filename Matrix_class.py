@@ -15,9 +15,14 @@ class Matrix:
     Accès/modification : 
     -----------------
         - ligne (élément) : Matrix[<ligne> (, <colonne>)]
-        - accès uniquement (TODO : support pour la modification) : 
-            - <ligne> et <colonne> peuvent être soit des entiers, soit des sous-parties (objet Slice au format <start>:<stop>:<step> : si <start> est fourni, la ligne colonne correspondante ne sera pas incluse)
+        - en accès uniquement : 
+            - <ligne> et <colonne> peuvent être soit des entiers, soit des sous-parties (objet Slice au format <start>:<stop>:<step>)
             - si l'un des deux (ou les deux) sont des sous-parties, alors le résultat de l'accès sera une matrice issue de la matrice originelle (avec un nom automatique).
+            - Interprétation des slices (IMPORTANT) :
+                - si <start> est fourni, la ligne/colonne correspondante ne sera pas incluse
+                - au contraire, si <stop> est fourni, la ligne/colonne correspondante sera bien incluse
+                - si <start> = 0, il sera interprété de manière identique à -1
+
 
     Opérateurs/Actions implémentés : 
     -------------
@@ -29,10 +34,16 @@ class Matrix:
     
     Opérations élémentaires :
     ------------- 
+        Ces opérations utilisent les matrices de transformation définies dans ce fichier, sur les lignes (multiplication à gauche). \n
+        (Pour avoir les transformations sur les colonnes, veuillez utiliser les subs-classes indiquées directement.
+        Leur initialisation est similaire aux énoncés mathématiques, et elles héritent de toutes les méthodes de Matrix)
+
         - Transposée : self.transposition (retourne une nouvelle matrice)
-        - Permutation : self.permute(j, k) (en place)
-        - Dilatation : self.dilate(i, d) (en place)
-        - Transvection : self.transvect(i, j, t) (en place)
+        - Permutation : self.permute(j, k) (en place) : Permutation(j, k, size(, name))
+        - Dilatation : self.dilate(i, d) (en place) : Dilatation(i, d, size(, name))
+        - Transvection : self.transvect(i, j, t) (en place) : Transvection(i, j, t, size(, name))
+
+        Les autres matrices disponibles sont la matrice identité Identity(size(, name)) et la matrice élémentaire Elementary(i, j, size(, name))
     """
     def __init__(self, size: tuple[int, int] | int, name: str) -> None:
         self.name = name
@@ -147,7 +158,7 @@ class Matrix:
                     mat.set_as_mat([item])
                     mat = mat.transposition
                     mat.name = "{}({}:{}:{}, {})".format(
-                                    self.name, *key_l.indices(len(self)+1), key_c)
+                                    self.name, *key_l.indices(len(self)), key_c)
     
             else: # une seule ligne
                 if isinstance(key_c, slice): # plusieurs éléments d'une même ligne key_l
@@ -157,20 +168,22 @@ class Matrix:
                             self.name, key_l , *key_c.indices(len(self)+1)))
                     mat.set_as_mat([item])
                 else: # un seul item à l'index (key_l, key_c)
-                    assert (-self.size_l < key_l <= self.size_l) and (-self.size_c < key_c <= self.size_c), "item does not exist at coordinates {}, {}".format(key_l, key_c)
-                    item = self.__content[key_l-1][key_c-1]
+                    assert (-self.size_l <= key_l <= self.size_l) and (-self.size_c <= key_c <= self.size_c), "item does not exist at coordinates {}, {}".format(key_l, key_c)
+                    if key_l >= 0: key_l -= 1
+                    if key_c >= 0: key_c -= 1
+                    item = self.__content[key_l][key_c]
                     return item
                 
         elif isinstance(key, slice): # key est une suite de lignes
-            item = [self.__content[i-1] for i in range(*key.indices(len(self)+1))]
+            item = [self[i+1].content[0] for i in range(*key.indices(len(self)))]
+            print(item)
             mat = Matrix((len(item), self.size_c), 
-                                        "{}({}:{}:{})".format(
-                                            self.name, *key.indices(len(self)+1)))
+                "{}({}:{}:{})".format(self.name, *key.indices(len(self))))
             mat.set_as_mat(item)
 
         else: # key est un index
-            assert -self.size_l < key <= self.size_l, "line {} does not exist".format(key)
-            item = self.__content[key-1]
+            assert -self.size_l <= key <= self.size_l, "line {} does not exist".format(key)
+            item = self.__content[key-1 if key >= 0 else key]
             mat = Matrix((1, self.size_c), "{}({}, :)".format(self.name, key))
             mat.set_as_mat([item])
         return mat
@@ -178,17 +191,20 @@ class Matrix:
     def __setitem__(self, key: tuple | int, value) -> None:
         if isinstance(key, tuple): # key est un couple ligne/colonne
             key_l, key_c = key
-            assert (-self.size_l < key_l <= self.size_l) and (-self.size_c < key_c <= self.size_c), "invalid coordinates {}, {}".format(key_l, key_c)
-            self.__content[key_l-1][key_c-1] = value
+            assert (-self.size_l <= key_l <= self.size_l) and (-self.size_c <= key_c <= self.size_c), "invalid coordinates {}, {}".format(key_l, key_c)
+            if key_l >= 0: key_l -= 1
+            if key_c >= 0: key_c -= 1
+            self.__content[key_l][key_c] = value
         else: # key est un index
             assert isinstance(value, (list, Matrix)), "value must be either a list or a {} object".format(Matrix.__name__)
-            assert -self.size_l < key <= self.size_l, "line {} does not exist".format(key)
+            assert -self.size_l <= key <= self.size_l, "line {} does not exist".format(key)
+            if key >= 0: key -= 1
             if isinstance(value, list): # value est une liste de coefs
-                self.__content[key-1] = value
+                self.__content[key] = value
             else: # value est une matrice ligne
                 assert self.size_c == value.size_c, "la matrice ligne doit avoir le même nombre de colonnes"
                 for c in range(1, self.size_c+1):
-                    self.__content[key-1][c-1] = value[1, c]
+                    self.__content[key][c-1] = value[1, c]
 
     def __str__(self) -> str:
         sl = ['' for _ in range(len(self) + 1)]
@@ -326,7 +342,7 @@ if __name__ == '__main__':
     ])
     print(mat_A)
     print(repr(mat_A))
-    sous_mat_A = mat_A[:2, :]
+    sous_mat_A = mat_A[-2, ::-1] # 1ere ligne avec colonnes inversées
     print(sous_mat_A) # exemple sous matrice
     print(repr(sous_mat_A))
     # exemple matrice B de taille (3,2)
