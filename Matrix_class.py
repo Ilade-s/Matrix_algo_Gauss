@@ -21,7 +21,7 @@ class Matrix:
             - Interprétation des indices (IMPORTANT) :
                 - Entiers : un 0 est interprété comme un -1 (i.e. dernière ligne/colonne)
                 - Slices :
-                    - si <start> est fourni, la ligne/colonne correspondante ne sera pas incluse
+                    - si <start> est fourni et est positif, la ligne/colonne correspondante ne sera pas incluse (incluse si négatif)
                     - au contraire, si <stop> est fourni, la ligne/colonne correspondante sera bien incluse
                     - si <start> = 0, il sera interprété comme si <start> n'a pas été fourni
 
