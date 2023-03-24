@@ -1,4 +1,4 @@
-"""test échellonage"""
+"""test échelonnage"""
 from Matrix_class import *
 
 class Systeme(Matrix):
@@ -7,7 +7,7 @@ class Systeme(Matrix):
     def __init__(self, mat: list[list] | Matrix, name: str) -> None:
         super().__init__(0, name)
         self.set_as_mat(mat, strict=False)
-        self.__rang = -1
+        self.__rang = 0
     
     @property
     def equations(self):
@@ -19,7 +19,6 @@ class Systeme(Matrix):
     
     @property
     def rang(self):
-        assert self.__rang >= 0, "La matrice n'a pas été échellonnée"
         return self.__rang
     
     def first_non_zero(self, l: int):
@@ -30,12 +29,25 @@ class Systeme(Matrix):
             if c > self.equations.size_c: return 0
         return c 
     
+    def col_is_empty(self, c: int, l=1) -> bool:
+        """retourne vrai si la colonne est vide à partir de la ligne l (à partir de la 1ere ligne par défaut), faux sinon"""
+        tr = self.equations.transposition
+        while not tr[c, l]:
+            l += 1
+            if l > tr.size_c: return True
+        return False
+    
     def ech(self, n_pivot=1):
-        """échellonne la matrice (en place)
-        \nn_pivots à 1 signifie qu'on effectue l'échellonnage total du système (recommandé/par défaut)"""
-        if n_pivot > self.equations.size_c or not self.first_non_zero(n_pivot): # on est n dehors de la matrice, ou la ligne étudiée est totalement nulle
-            self.__rang = n_pivot - 1
-        else: # l'échellonnage n'est pas terminé
+        """échelonne la matrice (en place)
+        \nn_pivots à 1 signifie qu'on effectue l'échelonnage total du système (recommandé/par défaut)"""
+        if n_pivot > len(self): # on est en dehors de la matrice, ou la ligne étudiée est totalement nulle
+            return self.rang
+        elif not self.first_non_zero(n_pivot) and n_pivot < len(self): # ligne nulle, qui n'est pas la dernière ligne : on l'échange avec la prochaine
+            self.permute(n_pivot, n_pivot + 1)
+            self.ech(n_pivot) # on reprend à la ligne permutée
+        elif self.col_is_empty(n_pivot, n_pivot): # par de coef non nul dans cette colonne à partir de la ligne n_pivots : pas de pivot possible
+            self.ech(n_pivot + 1)
+        else: # l'échelonnage n'est pas terminé
             # choisi, et si nécessaire replace, le 1er pivot
             if self.first_non_zero(n_pivot) > n_pivot:
                 nl = n_pivot + 1
@@ -44,28 +56,29 @@ class Systeme(Matrix):
                 self.permute(n_pivot, nl)
             # met à 0 les coefs de la même colonne, en dessous du pivot (self[n_pivot:, n_pivot])
             for l in range(n_pivot + 1, len(self) + 1):
-                t = - self[l, n_pivot] / self[n_pivot, n_pivot]
-                print('T{}{}({})'.format(l, n_pivot, t))
-                self.transvect(l, n_pivot, t)
-            
-            print(self)
-
-            self.ech(n_pivot+1)
+                if self[l, n_pivot]:
+                    t = (-1) * self[l, n_pivot] / self[n_pivot, n_pivot]
+                    print('T{}{}({})'.format(l, n_pivot, t))
+                    self.transvect(l, n_pivot, t)
+                    print(self)
+            self.__rang += 1
+            self.ech(n_pivot + 1)
     
     def reduce(self, offset=0):
-        """reduit la matrice à une matrice triangulaire supérieure (voire diagonale)
-        \tLa matrice doit avoir été préalablement échellonnée (self.ech())"""
+        """reduit la matrice à une matrice triangulaire supérieure (voire diagonale). 
+        \nLa matrice doit avoir été préalablement échelonnée (self.ech())"""
         l = len(self) - offset
-        if l == 0:
-            pass
-        else:
+        if l:
             c = self.first_non_zero(l)
             if c: # si la ligne n'est pas nulle (pivot présent), on peut la réduire
+                print("D{}({})".format(l, 1 / self[l, c]))
                 self.dilate(l, 1 / self[l, c]) # on met le pivot à 1
                 # on met à zéro les coefs de la colonne au dessus du pivot
                 for i in range(1, l):
-                    t = - self[i, c] / self[l, c]
-                    self.transvect(i, l, t)
+                    if self[i, c]:    
+                        t = (-1) * self[i, c] / self[l, c]
+                        print('T{}{}({})'.format(i, l, t))
+                        self.transvect(i, l, t)
             print(self)        
             # on appelle reduce sur la colonne au dessus
             self.reduce(offset + 1)
@@ -78,13 +91,22 @@ if __name__ == '__main__':
         [2, -1, 4, 2],
         [4, 3, -2, 14]
     ])
+    #a = Variable('a', 1)
+    #b = Variable('b', 1)
+    #c = Variable('c', 1)
+    #d = Variable('d', 1)
+    #mat = Matrix((3, 4), "C")
+    #mat.set_as_mat([
+    #    [1, 1, 1, 1],
+    #    [a, b, c, d],
+    #    [a**2, b**2, c**2, d**2]
+    #])
 
     sys = Systeme(mat, 'S')
 
     print(sys)
 
-    #print(sys.equations)
-    #print(sys.results)
-
     sys.ech()
+    print("Rang du système : ", sys.rang)
+    print("Réduction")
     sys.reduce()

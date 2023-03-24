@@ -307,8 +307,7 @@ class Dilatation(Identity):
             name = 'D{}({})'.format(i, d)
         super().__init__(size, name)
         assert 0 < i <= len(self), "{} : given line {} is out of bounds".format(self.__repr__(), i)
-        for c in range(size):
-            self[c, c] = d if c == i else 1
+        self[i, i] = d
 
 class Permutation(Identity):
     """Matrice de permutation P des lignes/colonnes j et k : P{j}{k}

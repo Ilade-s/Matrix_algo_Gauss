@@ -20,9 +20,12 @@ class Expression:
         if constant_included and self.constant:
             res.append(self.constant)
         return res
+
+    def __bool__(self) -> bool:
+        return bool(self.non_zero(True))
     
     def __str__(self) -> str:
-        return ' + '.join(map(str, self.non_zero(True)))
+        return ' + '.join(map(str, self.non_zero(True))) if self.non_zero() else str(self.constant)
     
     def __repr__(self) -> str:
         vars_repr = ' ; '.join(map(repr, self.non_zero()))
@@ -129,22 +132,27 @@ class Variable:
         return self.constant_factor != 0
     
     def __str__(self) -> str:
-        return (str(self.factor) if self.factor != 1 else '') + self.name + ('^{}'.format(self.exp) if self.exp != 1 else '')
+        prefix = ''
+        if not isinstance(self.factor, self.__class__):
+            if self.factor < 0:
+                prefix = '-'
+        return (str(self.factor) if abs(self.constant_factor) != 1 else prefix) + self.name + ('^{}'.format(self.exp) if self.exp != 1 else '')
     
     def __repr__(self) -> str:
         return "{}({}, {}, {})".format(self.__class__.__name__, repr(self.factor), self.name, self.exp)
 
-    def __add__(self, addvalue) -> (Expression | Variable):
+    def __add__(self, addvalue) -> (Expression | Variable | Any):
         if isinstance(addvalue, self.__class__):
             if self.is_same_vars(addvalue):
                 mul_factor = (self.constant_factor + addvalue.constant_factor) / self.constant_factor
-                return self * mul_factor
+                res = self * mul_factor
             else:
-                return Expression(0, [self, addvalue])
+                res = Expression(0, [self, addvalue])
         elif isinstance(addvalue, Expression):
-            return addvalue + self
+            res = addvalue + self
         else:
-            return Expression(addvalue, [self])
+            res = Expression(addvalue, [self])
+        return res if res else 0
     
     def __radd__(self, addvalue) -> (Expression | Variable):
         return self + addvalue
@@ -158,7 +166,7 @@ class Variable:
             if i_factor.name == mulvalue.name:
                 i_factor.factor *= mulvalue.factor
                 i_factor.exp += mulvalue.exp
-                if i_factor.exp == 0: # inconnue à la puissance 0 -> simplifier en une constante seulement
+                if i_factor.exp == 0: # inconnue à la puissance 0 -> simplifier en le facteur seulement
                     return i_factor.factor
             else:    
                 i_factor.factor *= mulvalue
