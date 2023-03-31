@@ -6,7 +6,10 @@ class Systeme(Matrix):
     \nSubclass de Matrix"""
     def __init__(self, mat: list[list] | Matrix, name: str, len_2nd = 1) -> None:
         """len_2nd est le nombre de colonne prises par le second membre du système self[:, - len_2nd:]"""
-        assert len_2nd < len(mat[0]), "le second membre doit avoir un nombre de colonnes strictement inférieur à la matrice totale"
+        if isinstance(mat, Matrix):    
+            assert len_2nd < mat.size_c, "le second membre doit avoir un nombre de colonnes strictement inférieur à la matrice totale"
+        else:
+            assert len_2nd < len(mat[0]), "le second membre doit avoir un nombre de colonnes strictement inférieur à la matrice totale"
         super().__init__(0, name)
         self.l_2nd = len_2nd
         self.set_as_mat(mat, strict=False)
@@ -80,7 +83,7 @@ class Systeme(Matrix):
             if c: # si la ligne n'est pas nulle (pivot présent), on peut la réduire
                 d = 1 / self[l, c]
                 if d != 1:
-                    print("D{}({})".format(l, ))
+                    print("D{}({})".format(l, 1 / self[l, c]))
                     self.dilate(l, 1 / self[l, c]) # on met le pivot à 1
                 # on met à zéro les coefs de la colonne au dessus du pivot
                 for i in range(1, l):
@@ -106,16 +109,16 @@ if __name__ == '__main__':
         [0, 1, -2, 0, 1, 0],
         [0, 0, 1, 0, 0, 1]
     ])
-    #a = Variable('a', 1)
-    #b = Variable('b', 1)
-    #c = Variable('c', 1)
-    #d = Variable('d', 1)
-    #mat = Matrix((3, 4), "C")
-    #mat.set_as_mat([
-    #    [1, 1, 1, 1],
-    #    [a, b, c, d],
-    #    [a**2, b**2, c**2, d**2]
-    #])
+    a = Variable('a', 1)
+    b = Variable('b', 1)
+    c = Variable('c', 1)
+    d = Variable('d', 1)
+    mat = Matrix((3, 4), "C")
+    mat.set_as_mat([
+        [1, 1, 1, 1],
+        [a, b, c, d],
+        [a**2, b**2, c**2, d**2]
+    ])
 
     sys = Systeme(mat, 'S', len_2nd=3)
 

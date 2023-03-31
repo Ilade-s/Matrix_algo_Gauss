@@ -94,7 +94,7 @@ class Matrix:
                 assert mat.size_c == self.size_c, "dimension colonnes incompatible : self = {} ; mat = {}".format(self.size_c, mat.size_c)
         else:
             if mat_is_list:
-                self.__set_size(len(mat), len(mat[0]))
+                self.__set_size((len(mat), len(mat[0])))
             else:
                 self.__set_size(mat.size)
         if mat_is_list:    
